@@ -1,188 +1,217 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaHome, FaShoppingCart, FaUser, FaFire } from "react-icons/fa";
+import {
+  FaHome,
+  FaShoppingCart,
+  FaUser,
+  FaFire,
+  FaBars,
+  FaTimes,
+} from "react-icons/fa";
 
 export default function Header() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
+
   const [cartCount, setCartCount] = useState(0);
   const [pop, setPop] = useState(false);
-  const [hot, setHot] = useState(false); // trending animation
+  const [hot, setHot] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
+  /* ---------- Responsive ---------- */
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+      if (window.innerWidth > 768) setMenuOpen(false);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  /* ---------- Cart Count ---------- */
   useEffect(() => {
     const updateCart = () => {
-      const storedCart = JSON.parse(localStorage.getItem("cart")) || [];
-      const count = storedCart.reduce((acc, item) => acc + (item.quantity || 1), 0);
+      const cart = JSON.parse(localStorage.getItem("cart")) || [];
+      const count = cart.reduce(
+        (sum, item) => sum + (item.quantity || 1),
+        0
+      );
 
       if (count > cartCount) {
         setPop(true);
-        setHot(true); // trigger trending effect
+        setHot(true);
         setTimeout(() => setPop(false), 300);
-        setTimeout(() => setHot(false), 1500); // trending animation for 1.5s
+        setTimeout(() => setHot(false), 1500);
       }
-
       setCartCount(count);
     };
 
     updateCart();
-
-    const handleStorage = () => updateCart();
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener("storage", updateCart);
+    return () => window.removeEventListener("storage", updateCart);
   }, [cartCount]);
+
+  const go = (path) => {
+    if (!user) return alert("Please login first");
+    navigate(path);
+    setMenuOpen(false);
+  };
 
   const logout = () => {
     localStorage.clear();
     navigate("/login");
   };
 
-  const handleProtectedClick = (e, path) => {
-    if (!user) {
-      e.preventDefault();
-      alert("Please login to view this page");
-    } else {
-      navigate(path);
-    }
-  };
-
   return (
     <header style={styles.header}>
       {/* Logo */}
-      <h2 style={styles.logo} onClick={(e) => handleProtectedClick(e, "/")}>
+      <h2 style={styles.logo} onClick={() => navigate("/")}>
         📚 BookStore
       </h2>
 
-      {/* Navigation */}
-      <nav style={styles.nav}>
+      {/* Hamburger */}
+      {isMobile && (
+        <div style={styles.hamburger} onClick={() => setMenuOpen(!menuOpen)}>
+          {menuOpen ? <FaTimes /> : <FaBars />}
+        </div>
+      )}
+
+      {/* Nav (Desktop + Mobile) */}
+      <nav
+        style={{
+          ...styles.nav,
+          ...(isMobile ? styles.mobileNav : {}),
+          ...(isMobile && !menuOpen ? { display: "none" } : {}),
+        }}
+      >
         {/* Home */}
-        <span
-          onClick={(e) => handleProtectedClick(e, "/")}
-          style={styles.navItem}
-        >
-          <FaHome style={{ marginRight: 6 }} />
-          Home
+        <span style={styles.navItem} onClick={() => go("/")}>
+          <FaHome /> Home
         </span>
 
         {/* Cart */}
         <span
-          onClick={(e) => handleProtectedClick(e, "/cart")}
           style={{ ...styles.navItem, position: "relative" }}
+          onClick={() => go("/cart")}
         >
-          <FaShoppingCart style={{ marginRight: 6 }} />
-          Cart
+          <FaShoppingCart /> Cart
           {cartCount > 0 && (
             <span
               style={{
                 ...styles.badge,
-                transform: pop ? "scale(1.5)" : "scale(1)",
+                transform: pop ? "scale(1.4)" : "scale(1)",
                 backgroundColor: hot ? "#ff5722" : "#ff3b2e",
               }}
             >
               {cartCount}
-              {hot && <FaFire style={{ marginLeft: 2, fontSize: 10 }} />}
+              {hot && <FaFire style={{ fontSize: 10, marginLeft: 2 }} />}
             </span>
           )}
         </span>
 
-        {/* User / Login */}
+        {/* User */}
         {user ? (
-          <div style={styles.userSection}>
-            <FaUser style={{ marginRight: 5 }} />
-            Hello, {user.name || "User"}
-            <button style={styles.logoutBtn} onClick={logout}>
+          <div style={styles.userBox}>
+            <FaUser /> {user.name || "User"}
+            <button onClick={logout} style={styles.logoutBtn}>
               Logout
             </button>
           </div>
         ) : (
-          <span onClick={() => navigate("/login")} style={styles.loginBtn}>
-            <FaUser style={{ marginRight: 6 }} />
-            Login
+          <span style={styles.loginBtn} onClick={() => navigate("/login")}>
+            <FaUser /> Login
           </span>
         )}
       </nav>
     </header>
   );
 }
-
 const styles = {
   header: {
     display: "flex",
-    justifyContent: "space-between",
     alignItems: "center",
-    padding: "12px 30px",
+    justifyContent: "space-between",
+    padding: "12px 20px",
     backgroundColor: "#ff6f61",
     color: "#fff",
     position: "sticky",
     top: 0,
     zIndex: 1000,
-    boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
   },
   logo: {
-    margin: 0,
     cursor: "pointer",
-    fontSize: "1.6rem",
+    fontSize: "1.5rem",
     fontWeight: 700,
-    letterSpacing: "1px",
+  },
+  hamburger: {
+    fontSize: "1.6rem",
+    cursor: "pointer",
   },
   nav: {
     display: "flex",
     gap: "20px",
     alignItems: "center",
   },
+  mobileNav: {
+    position: "absolute",
+    top: "65px",
+    right: "15px",
+    background: "#fff",
+    color: "#ff6f61",
+    flexDirection: "column",
+    padding: "15px",
+    borderRadius: "10px",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+    width: "200px",
+  },
   navItem: {
     cursor: "pointer",
-    color: "#fff",
     fontWeight: 600,
-    padding: "6px 12px",
-    borderRadius: "6px",
     display: "flex",
+    gap: 6,
     alignItems: "center",
-    transition: "background 0.3s",
   },
   badge: {
     position: "absolute",
-    top: "-6px",
+    top: "-8px",
     right: "-10px",
     width: "22px",
     height: "22px",
     borderRadius: "50%",
+    color: "#fff",
+    fontSize: "0.7rem",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "0.75rem",
-    fontWeight: 700,
-    color: "#fff",
-    transition: "transform 0.3s, background 0.3s",
   },
-  userSection: {
+  userBox: {
     display: "flex",
+    gap: 8,
     alignItems: "center",
-    gap: "10px",
-    backgroundColor: "#fff",
+    background: "#fff",
     color: "#ff6f61",
-    padding: "6px 12px",
+    padding: "6px 10px",
     borderRadius: "8px",
     fontWeight: 600,
   },
   logoutBtn: {
-    backgroundColor: "#ff6f61",
-    color: "#fff",
     border: "none",
+    background: "#ff6f61",
+    color: "#fff",
+    padding: "4px 8px",
     borderRadius: "6px",
-    padding: "4px 10px",
     cursor: "pointer",
-    fontWeight: 600,
-    transition: "opacity 0.2s",
   },
   loginBtn: {
     cursor: "pointer",
-    padding: "6px 15px",
-    backgroundColor: "#fff",
+    background: "#fff",
     color: "#ff6f61",
+    padding: "6px 10px",
     borderRadius: "8px",
     fontWeight: 600,
     display: "flex",
+    gap: 6,
     alignItems: "center",
-    transition: "opacity 0.3s",
   },
 };
